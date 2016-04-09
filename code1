@@ -1,0 +1,354 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <error.h>
+#include <signal.h>
+#include <unistd.h>
+#include <syslog.h>
+#define BUFSIZE 1024
+#define TOK_BUFSIZE 64
+#define TOK_DELIM " \t\r\n\a"
+char **hist;
+int count = 0;
+
+struct node {
+    struct node *next;
+};
+int check[100];
+int checkcount = 0;
+int completecount = 0;
+struct node *head = (struct node *) NULL;
+
+int Shellcd(char **arr);
+int Shellhelp(char **arr);
+int Shellexit(char **arr);
+int Shellhistory(char **arr);
+int Shellkill(char **arr);
+int Shellcat(char **arr);
+int Shellin(char **arr);
+int Shellmalloc(char **arr);
+int Shellfree(char **arr);
+
+char *str[] = {"cd", "help", "exit", "history", "kill", "cat", "malloc", "free"};
+
+int (*func[]) (char **) = {&Shellcd, &Shellhelp, &Shellexit, &Shellhistory, &Shellkill, &Shellcat, &Shellmalloc, &Shellfree};
+
+int num() {
+  return sizeof(str) / sizeof(char *);
+}
+
+void concatenate(char p[], char q[]) {
+   int c, d;
+   c = 0;
+   while (p[c] != '\0') {
+      c++;  	
+   }
+ 
+   d = 0;
+ 
+   while (q[d] != '\0') {
+      p[c] = q[d];
+      d++;
+      c++;	
+   }
+ 
+   p[c] = '\0';
+}
+
+/*int Shellin(char **arr) {
+	int i, j;
+	for(i=0; arr[i]!='\0'; i++) {
+		if(arr[i] == ">") {
+			if(i==2) {
+				char *line1;
+				strcpy(line1, arr[0]);
+				concatenate(line1, " ");
+				concatenate(line1, arr[1]);
+				concatenate(line1, " ");
+				concatenate(line1, arr[2]);
+				char** arr1;
+				arr1 = ShellSplitLine(line1);
+				int status1 = ShellExecute(arr1);
+
+			}
+			if(i=1) {
+				FILE *fp;
+				FILE *fw;
+				fp = fopen(arr[0], "r");
+				fw = fopen(arr[1], "w+");
+				if(fp == NULL){
+    				perror("Error while opening the file.\n");
+    				exit(EXIT_FAILURE);
+				}
+ 				char ch;
+				while((ch = fgetc(fp)) != EOF)
+    				fprintf(fw, "%c", ch);
+				fclose(fp);
+			}
+		}
+	}
+	/*for(j=0; j<i; j++) {
+		
+	}*/
+
+int Shellmalloc(char **arr) {
+	if (arr[1] == NULL) {
+		fprintf(stderr, "Shell: expected argument to \"malloc\"\n");
+	}
+	//printf("%p\n", &head);
+	struct node *ptr;
+	int size = atoi(arr[1]);
+	check[checkcount] = size;
+	checkcount++;
+	completecount+=size;
+	ptr = (struct node*)calloc(size, sizeof(struct node));
+	//printf("%p\n", &(ptr));
+	//printf("%p\n", &(ptr->next));
+	if(head == NULL) {    
+	    head = ptr;
+	    head->next = NULL;
+	    //printf("%p\n", &(head));
+	    //printf("%p\n", &(head->next));
+    	}
+    	else {
+    	    head->next = ptr;
+    	    ptr->next = NULL;
+    	    //head = ptr;
+	    //printf("%p\n", &(head));
+	    //printf("%p\n", &(ptr->next));
+	    //printf("%p\n", &(head->next));
+    	}
+    //printf("%p\n", &(head->next));
+	return 1;
+}
+
+int Shellfree(char **arr) {
+	if (arr[1] == NULL) {
+		fprintf(stderr, "Shell: expected argument to \"free\"\n");
+		//printf("Shell: expected argument to \"free\"\n");
+	}
+	int pos = atoi(arr[1]);
+	int val = check[pos];
+	struct node *temp = (struct node *) NULL;
+	struct node *prev = (struct node *) NULL;
+	//prev = temp;
+	//temp->next = NULL;
+	if(head == NULL) {
+		fprintf(stderr, "No memory to be freed\n");
+	}
+	else {
+        if (pos > 0 && pos <= checkcount) {
+            temp = head;
+            int i = 1;
+            while(temp != NULL && i < pos) {
+		prev = temp;
+            	temp = temp->next;
+		//printf("%d\n", i);
+		i++;
+		//printf("\nElement at %p", &temp);
+            }
+	    prev->next = temp->next;
+	    //printf("\nElement at %p deleted", &temp);
+	    //printf("\nrrr");
+        }
+        else {
+            printf("Position is out of range");
+        }
+	free(temp);
+	}
+    return 1;
+}
+
+int Shellhistory(char **arr) {
+	FILE *fp;
+	fp = fopen("history.txt", "r");
+	if(fp == NULL){
+    	perror("Error while opening the file.\n");
+    	exit(EXIT_FAILURE);
+	}
+ 	char ch;
+	while((ch = fgetc(fp)) != EOF)
+    	printf("%c", ch);
+	fclose(fp);
+	return 1;
+}
+
+int Shellcd(char **arr) {
+	if (arr[1] == NULL) {
+		fprintf(stderr, "Shell: expected argument to \"cd\"\n");
+	}
+	else if (chdir(arr[1]) != 0) {
+      perror("Shell");
+    }
+  return 1;
+}
+
+int Shellhelp(char **arr) {
+	int i;
+	printf("Vrinda's Shell!\n");
+	printf("Write the commands that you want to run with their arguments.\n");
+	printf("The following functions are built in:\n");
+	for (i = 0; i < num(); i++) {
+		printf("  %s\n", str[i]);
+	}
+	printf("Use the man command for information on other programs.\n");
+	return 1;
+}
+
+int Shellkill(char **arr) {
+	pid_t pid;
+	pid = fork();
+	printf("%d\n", pid);
+	return pid;
+}
+
+
+
+int Shellcat(char **arr) {
+	FILE *fp;
+	fp = fopen(arr[1], "r");
+	if( fp == NULL ){
+    	perror("Error while opening the file.\n");
+    	exit(EXIT_FAILURE);
+	}
+	//printf("The contents of %s file are :\n", file_name);
+ 	char ch;
+	while((ch = fgetc(fp)) != EOF)
+    	printf("%c",ch);
+	fclose(fp);
+	return 0;
+}
+
+int Shellpipe(char **arr) {
+
+
+}
+
+int Shellexit(char **arr) {
+  return 0;
+}
+
+int ShellExecute(char **arr) {
+	int i;
+	if (arr[0] == NULL) {
+		return 1;
+	}
+	for (i = 0; i < num(); i++) {
+		if (strcmp(arr[0], str[i]) == 0) {
+			return (*func[i])(arr);
+		}
+		/*else if(strcmp(arr[1], str[6]) == 0 || strcmp(arr[2], str[6]) == 0) {
+			return (*func[6])(arr);
+		}*/
+	}
+  return ShellLaunch(arr);
+}
+
+int ShellLaunch(char **arr) {
+	pid_t pid, wpid;
+	int status;
+	pid = fork();
+	if (pid == 0) {
+		if (execvp(arr[0], arr) == -1) {
+			perror("Shell");
+		}
+	exit(EXIT_FAILURE);
+	}
+	else if (pid < 0) {
+    	perror("Shell");
+	} 
+	else {
+    wpid = waitpid(pid, &status, WUNTRACED);
+	    while (!WIFEXITED(status) && !WIFSIGNALED(status)) {
+	    	wpid = waitpid(pid, &status, WUNTRACED);
+	    }
+	}
+  return 1;
+}
+
+char *ShellReadLine(void) {
+  char *line = NULL;
+  ssize_t bufsize = 0;
+  getline(&line, &bufsize, stdin);
+  return line;
+}
+
+char **ShellSplitLine(char *line) {
+  	int bufsize=TOK_BUFSIZE, pos=0;
+	char **b = malloc(bufsize * sizeof(char*));
+	char *t;
+	if (!b) {
+		fprintf(stderr, "MyShell: allocation error\n");
+	    exit(EXIT_FAILURE);
+	}
+	t = strtok(line, TOK_DELIM);
+    while (t != NULL) {
+    	b[pos] = t;
+	    pos++;
+	    if (pos>=bufsize) {
+		    bufsize+=TOK_BUFSIZE;
+		    b = realloc(b, bufsize * sizeof(char*));
+		    if (!b) {
+		      	fprintf(stderr, "MyShell: allocation error\n");
+		        exit(EXIT_FAILURE);
+		    }
+		}
+		t = strtok(NULL, TOK_DELIM);
+	}
+	b[pos] = NULL;
+	return b;
+}
+
+void loop(void) {
+	char *line;
+	char **arr;
+ 	int status;
+ 	int sii = TOK_BUFSIZE;
+ 	
+ 	int si = 100;
+ 	hist = (char**)malloc(sii * sizeof(char*));
+ 	int i;
+ 	for(i=0; i<sii; i++) {
+ 		hist[i] = (char*)malloc(si*sizeof(char));
+ 	}
+    printf("> ");
+    line = ShellReadLine();
+    hist[i] = line;
+    count++;
+    FILE *fp;
+	fp = fopen("history.txt", "w+");
+	if(fp==NULL){
+			printf("Error!");
+    		//exit(1);
+	}
+	arr = ShellSplitLine(line);
+	fprintf(fp,"%s\n", arr[0]);
+    status = ShellExecute(arr);
+
+	while (status) {
+  		free(line);
+    	free(arr);
+  		printf("> ");
+	    line = ShellReadLine();
+	    FILE *fp;
+		fp = fopen("history.txt", "w+");
+		if(fp==NULL){
+    		printf("Error!");
+    		//exit(1);
+		}
+	    arr = ShellSplitLine(line);
+	    fprintf(fp,"%s\n", arr[0]);
+	    status = ShellExecute(arr);
+	}	
+}
+
+int main(int argc, char **argv) {
+	loop();
+
+	// Perform any shutdown/cleanup.
+
+	return EXIT_SUCCESS;
+}
